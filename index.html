@@ -49,6 +49,10 @@ button{cursor:pointer}
 .tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px;border-bottom:2px solid var(--line)}
 .tab{flex:0 0 auto;border:0;background:none;padding:10px 14px;border-bottom:3px solid transparent;margin-bottom:-2px;color:var(--ink2);font-weight:500;border-radius:8px 8px 0 0}
 .tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+@media (max-width:480px){
+  .apphd .tabs{gap:2px}
+  .apphd .tab{padding:6px 8px;font-size:.9em}
+}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .scope summary{cursor:pointer;font-weight:700;display:flex;justify-content:space-between;gap:8px}
 .scope summary span{font-weight:400;color:var(--ink2)}
