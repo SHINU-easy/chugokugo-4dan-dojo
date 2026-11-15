@@ -566,7 +566,7 @@ function speak(text,lang,rate,onend){lang=lang||'zh-CN';text=String(text==null?'
 const sayTTS=speak;
 
 /* ---------- chrome ---------- */
-const TABS=[['learn','教材'],['compose','作文'],['listen','リスニング'],['vocab','単語'],['make','作る'],['stats','成績']];
+const TABS=[['learn','教材'],['compose','作文'],['listen','リスニングと発音'],['vocab','単語'],['make','作る'],['stats','成績']];
 function renderTabs(){$('#tabs').innerHTML=TABS.map(([k,n])=>`<button class="tab" role="tab" aria-selected="${tab===k}" data-act="tab" data-k="${k}">${n}</button>`).join('')}
 function renderScope(){const ids=selU(),n=ids.reduce((a,i)=>a+CB[i].all.length,0),el=$('#scope'),open=el.open;
   const opt=(i,cur)=>CATS.map((c,k)=>`<option value="${k}" ${k===cur?'selected':''}>${k+1}</option>`).join('');
@@ -1326,7 +1326,7 @@ function playLis(){const it=S&&S.items[S.i];if(!it||!S.q)return;const my=++playS
 function vListen(v){v.className='';
   if(S&&S.kind==='lis'){v.innerHTML=S.i>=S.items.length?summary():lisQ();return}
   const nBase=selU().reduce((a,id)=>a+ALL(id).filter(s=>s.base!==null&&(s.type==='Q'||s.type==='R')).length,0),nAll=selU().reduce((a,id)=>a+ALL(id).filter(s=>s.type!=='P'&&s.ja).length,0);
-  v.innerHTML=`<div class="panel q"><h2>リスニング</h2><p class="sub">端末の音声合成を使います。答え方は、語順タイル・入力（ピンインまたは簡体字）・発音（マイク）のどれでも選べます。</p>
+  v.innerHTML=`<div class="panel q"><h2>リスニングと発音</h2><p class="sub">端末の音声合成を使います。答え方は、語順タイル・入力（ピンインまたは簡体字）・発音（マイク）のどれでも選べます。</p>
   <div class="opts"><label><input type="radio" name="lm" value="j2z" data-set="lmode" ${lmode==='j2z'?'checked':''}>① 日本語を聞いて中国語で答える（文の種類は常に表示：肯定・否定・“吗”疑問・反復疑問）</label>
   <label><input type="radio" name="lm" value="qa" data-set="lmode" ${lmode==='qa'?'checked':''}>② 中国語の“吗”疑問・反復疑問を聞き、効果音（ピンポン＝肯定／ブー＝否定）に合わせて答える（人称は答える側に直す：你→我 など。目的語などはそのまま）</label></div>
   <div class="set"><label>問題数<select data-set="count">${[5,10,20].map(n=>`<option ${set.count==n?'selected':''}>${n}</option>`).join('')}</select></label>
