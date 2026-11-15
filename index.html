@@ -704,11 +704,30 @@ function placeGloss(){
     var mv=[];bs.forEach(function(b){var w=c.querySelector('.zr i[data-w="'+b.dataset.g+'"]');if(!w)return;
       var rb=b.getBoundingClientRect(),rw=w.getBoundingClientRect();if(!rw.width||!rb.width)return;
       mv.push([b,(rw.left+rw.width/2)-(rb.left+rb.width/2)]);});
+    mv.forEach(function(x){x[0].style.transform='translateX('+x[1].toFixed(1)+'px)';});});
+  /* 雛形行：小さくした日本語ラベル（主語・動詞…）と漢字が同じ枠にあるとき、拼音を枠の中央ではなく漢字の真下に置く */
+  var box=function(el){var r=document.createRange();r.selectNodeContents(el);return r.getBoundingClientRect();};
+  $$('#doc .c .pr .f,#doc .c .yar .af>b').forEach(function(f){f.style.transform='';});
+  $$('#doc .c').forEach(function(c){if(!c.querySelector('.zr .hz'))return;
+    var zs=c.querySelectorAll('.zr .gr>.f'),ps=c.querySelectorAll('.pr .gr>.f'),mv=[];
+    zs.forEach(function(z,k){var hs=z.querySelectorAll('.hz'),p=ps[k];if(!hs.length||!p||!p.textContent.trim())return;
+      var l=Infinity,r=-Infinity;hs.forEach(function(h){var b=h.getBoundingClientRect();if(b.width){l=Math.min(l,b.left);r=Math.max(r,b.right);}});
+      var pb=box(p);if(!isFinite(l)||!pb.width)return;
+      var dx=(l+r)/2-(pb.left+pb.right)/2,cb=c.getBoundingClientRect();
+      dx=Math.max(cb.left+2-pb.left,Math.min(cb.right-2-pb.right,dx));   /* マスの外へは出さない */
+      mv.push([p,dx]);});
+    /* 同じ枠の下の注記（名詞(句)・～い・～な など）は、日本語ラベルの真下に置く */
+    var ys=c.querySelectorAll('.yar .gr>.af');
+    zs.forEach(function(z,k){if(!z.querySelector('.hz'))return;var js=z.querySelectorAll('.jl'),y=ys[k]&&ys[k].querySelector('b');if(!js.length||!y||!y.textContent.trim())return;
+      var l=Infinity,r=-Infinity;js.forEach(function(h){var b=h.getBoundingClientRect();if(b.width){l=Math.min(l,b.left);r=Math.max(r,b.right);}});
+      var yb=y.getBoundingClientRect();if(!isFinite(l)||!yb.width)return;
+      var dx=(l+r)/2-(yb.left+yb.right)/2,cb=c.getBoundingClientRect();
+      dx=Math.max(cb.left+2-yb.left,Math.min(cb.right-2-yb.right,dx));mv.push([y,dx]);});
     mv.forEach(function(x){x[0].style.transform='translateX('+x[1].toFixed(1)+'px)';});});}
 function cell(c){
   var w=c._w||weights(c), cols=w.map(function(x){return x.toFixed(1)+'fr';}).join(' ');
   var m=!c.g;
-  var mix=function(x){return c.n?esc(x):x.split(/(大主語|小主語|主語|目的語[12?]?|助動|動詞＋方向補語|動詞＋補語など|方向補語|動詞|形容詞|補語|場所|時間・方法|対象|数量|相手|行為者|人・物|人|A|B)/).map(function(p,k){return k%2?'<span class="jl">'+esc(p)+'</span>':esc(p);}).join('');};  /* 雛形行：日本語ラベル(主語・動詞…)だけ小さくUDフォント、中国語(不・得など)は楷体のまま */
+  var mix=function(x){return c.n?esc(x):x.split(/(大主語|小主語|主語|目的語[12?]?|助動|動詞＋方向補語|動詞＋補語など|方向補語|動詞|形容詞|補語|場所|時間・方法|対象|数量|相手|行為者|人・物|人|A|B)/).map(function(p,k,A){return k%2?'<span class="jl">'+esc(p)+'</span>':(A.length>1&&p.trim()?p.replace(/^(\s*)([\s\S]*?)(\s*)$/,function(m,a,b,c){return a+'<span class="hz">'+esc(b)+'</span>'+c;}):esc(p));}).join('');};  /* 雛形行：日本語ラベル(主語・動詞…)だけ小さくUDフォント、中国語(不・得など)は楷体のまま */
   var GMs=c.a.map(function(x,i){return (c.n&&x)?GM(c.t[i],x):null;});
   var wrapW=function(x,i){return String(x).split(/([ \u3000])/).map(function(w,k){return k%2?w:'<i class="wd" data-w="'+i+'_'+(k/2)+'">'+esc(w)+'</i>';}).join('');};
   var tz=function(a,cl,lb){return '<div class="gr '+cl+'">'+a.map(function(x,i){return '<span class="f'+(isPunct(c.t[i])?' r':'')+'">'+(lb?(GMs[i]?wrapW(x,i):mix(x)):esc(x))+'</span>';}).join('')+'</div>';};
