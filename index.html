@@ -151,6 +151,9 @@ textarea{min-height:90px;font-family:ui-monospace,monospace;font-size:.78rem}
 #doc .page .pn{position:absolute;left:84px;top:40px;font-family:var(--f-py);font-size:15px}
 #doc .copy{position:absolute;right:16px;bottom:5px;font-size:9px;line-height:1;font-family:var(--f-py);color:#666}
 #doc .page.hide{display:none}
+#doc .qr{position:absolute;left:10px;top:14px;width:60px;display:block;text-decoration:none;color:#000;line-height:1}
+#doc .qr svg{display:block;width:60px;height:60px}
+#doc .qr span{display:block;margin-top:1px;font-size:8px;text-align:center;letter-spacing:.02em;font-family:var(--f-ja,serif)}
 #doc h1{margin:0 0 4px;font-size:23px;font-weight:normal;text-align:center;letter-spacing:.5px;padding-left:20px;line-height:1.4}
 #doc .h2{margin:2px 0 1px 114px;font-size:15px;line-height:1.3}
 #doc .h2 small{font-size:10px;margin-left:6px}
@@ -520,10 +523,12 @@ if(tab==='print')tab='learn';
 /* ---------- URL・metaによる出題範囲の指定（#u=5-6&tab=compose&view=card&size=l） ---------- */
 const SIZES={s:.9,m:1,l:1.2,xl:1.45};
 function parseUnits(s){if(!s)return null;s=String(s).trim().toLowerCase();if(s==='all')return CATS.map((c,i)=>i);
-  const r=new Set();s.split(/[,、]/).forEach(p=>{const m=p.trim().match(/^(\d+)(?:-(\d+))?$/);if(!m)return;let a=+m[1],b=m[2]?+m[2]:a;if(a>b)[a,b]=[b,a];for(let i=a;i<=b;i++)if(i>=1&&i<=CATS.length)r.add(i-1)});
+  const r=new Set();s.split(/[,、]/).forEach(p=>{const id=CATS.findIndex(c=>c.id===p.trim());if(id>=0){r.add(id);return}const m=p.trim().match(/^(\d+)(?:-(\d+))?$/);if(!m)return;let a=+m[1],b=m[2]?+m[2]:a;if(a>b)[a,b]=[b,a];for(let i=a;i<=b;i++)if(i>=1&&i<=CATS.length)r.add(i-1)});
   return r.size?[...r].sort((a,b)=>a-b):null}
 function readSpec(){const o={},q=new URLSearchParams(location.search),hs=new URLSearchParams(location.hash.replace(/^#/,''));
-  ['u','tab','view','size'].forEach(k=>{const m=document.querySelector('meta[name="cj4-'+k+'"]');const v=hs.get(k)||q.get(k)||(m&&m.content);if(v)o[k]=v});return o}
+  ['u','tab','view','size'].forEach(k=>{const m=document.querySelector('meta[name="cj4-'+k+'"]');const v=hs.get(k)||q.get(k)||(m&&m.content);if(v)o[k]=v});
+  const bare=location.hash.replace(/^#/,'');if(bare&&!bare.includes('=')&&CATS.some(c=>c.id===bare)){o.u=bare;o.tab='learn';o.view='a4'}   /* 偶数ページのQRコード */
+  return o}
 function applySpec(o){let ch=false;const u=parseUnits(o.u);
   if(u){selIds=u.map(i=>CATS[i].id);learnCat=selIds[0];ch=true}
   if(['learn','compose','listen','vocab','make','stats'].includes(o.tab)){tab=o.tab;ch=true}
@@ -836,6 +841,64 @@ function gramPage(d){
    +'<div class="box">'+rows(s[1])+'</div><div class="copy">'+COPY+'</div></section>';
 }
 
+/* ---------------- QRコード（偶数ページ） ---------------- */
+/* QRコード（バイトモード・誤り訂正M・型番1〜10）：外部ライブラリなしで作る */
+function qrMatrix(text){
+  var ECC=[0,10,16,26,18,24,16,18,22,22,26],NB=[0,1,1,1,2,2,4,4,4,5,5];
+  var bytes=Array.from(new TextEncoder().encode(text));
+  var raw=function(v){var r=(16*v+128)*v+64;if(v>=2){var n=Math.floor(v/7)+2;r-=(25*n-10)*n-55;if(v>=7)r-=36;}return r;};
+  var ver=0;for(var v=1;v<=10;v++){if(4+8+8*bytes.length<=(Math.floor(raw(v)/8)-ECC[v]*NB[v])*8){ver=v;break;}}
+  if(!ver)throw new Error('QR: too long');
+  var cap=(Math.floor(raw(ver)/8)-ECC[ver]*NB[ver])*8,bits=[];
+  var put=function(val,len){for(var i=len-1;i>=0;i--)bits.push((val>>>i)&1);};
+  put(4,4);put(bytes.length,8);bytes.forEach(function(b){put(b,8);});
+  put(0,Math.min(4,cap-bits.length));put(0,(8-bits.length%8)%8);
+  for(var pad=0xEC;bits.length<cap;pad^=0xEC^0x11)put(pad,8);
+  var data=[];for(var i=0;i<bits.length;i+=8){var b=0;for(var j=0;j<8;j++)b=(b<<1)|bits[i+j];data.push(b);}
+  var mul=function(x,y){var z=0;for(var i=7;i>=0;i--){z=(z<<1)^((z>>>7)*0x11D);z^=((y>>>i)&1)*x;}return z;};
+  var deg=ECC[ver],div=[];for(i=0;i<deg-1;i++)div.push(0);div.push(1);
+  for(var root=1,k=0;k<deg;k++){for(j=0;j<div.length;j++){div[j]=mul(div[j],root);if(j+1<div.length)div[j]^=div[j+1];}root=mul(root,2);}
+  var rem=function(d){var r=div.map(function(){return 0;});d.forEach(function(b){var f=b^r.shift();r.push(0);div.forEach(function(c,i){r[i]^=mul(c,f);});});return r;};
+  var nb=NB[ver],total=Math.floor(raw(ver)/8),nShort=nb-total%nb,sLen=Math.floor(total/nb),blocks=[];
+  for(var q=0,p=0;q<nb;q++){var dat=data.slice(p,p+sLen-deg+(q<nShort?0:1));p+=dat.length;var ec=rem(dat);if(q<nShort)dat.push(0);blocks.push(dat.concat(ec));}
+  var cw=[];for(i=0;i<blocks[0].length;i++)for(j=0;j<nb;j++)if(i!==sLen-deg||j>=nShort)cw.push(blocks[j][i]);
+  var N=ver*4+17,M=[],F=[];for(i=0;i<N;i++){M.push(new Array(N).fill(false));F.push(new Array(N).fill(false));}
+  var set=function(x,y,d){M[y][x]=d;F[y][x]=true;};
+  for(i=0;i<N;i++){set(6,i,i%2===0);set(i,6,i%2===0);}
+  [[3,3],[N-4,3],[3,N-4]].forEach(function(c){for(var dy=-4;dy<=4;dy++)for(var dx=-4;dx<=4;dx++){var x=c[0]+dx,y=c[1]+dy,d=Math.max(Math.abs(dx),Math.abs(dy));if(x>=0&&x<N&&y>=0&&y<N)set(x,y,d!==2&&d!==4);}});
+  var ap=[];if(ver>1){var na=Math.floor(ver/7)+2,st=Math.ceil((ver*4+4)/(na*2-2))*2;ap=[6];for(var ps=ver*4+10;ap.length<na;ps-=st)ap.splice(1,0,ps);}
+  for(i=0;i<ap.length;i++)for(j=0;j<ap.length;j++){if((i===0&&j===0)||(i===0&&j===ap.length-1)||(i===ap.length-1&&j===0))continue;
+    for(var dy2=-2;dy2<=2;dy2++)for(var dx2=-2;dx2<=2;dx2++)set(ap[i]+dx2,ap[j]+dy2,Math.max(Math.abs(dx2),Math.abs(dy2))!==1);}
+  var fmt=function(mask){var d=(0<<3)|mask,r=d;for(var i=0;i<10;i++)r=(r<<1)^((r>>>9)*0x537);var b=((d<<10)|r)^0x5412,g=function(i){return ((b>>>i)&1)!==0;};
+    for(i=0;i<=5;i++)set(8,i,g(i));set(8,7,g(6));set(8,8,g(7));set(7,8,g(8));for(i=9;i<15;i++)set(14-i,8,g(i));
+    for(i=0;i<8;i++)set(N-1-i,8,g(i));for(i=8;i<15;i++)set(8,N-15+i,g(i));set(8,N-8,true);};
+  fmt(0);
+  if(ver>=7){var vr=ver;for(i=0;i<12;i++)vr=(vr<<1)^((vr>>>11)*0x1F25);var vb=(ver<<12)|vr;for(i=0;i<18;i++){var bt=((vb>>>i)&1)!==0,a=N-11+i%3,c2=Math.floor(i/3);set(a,c2,bt);set(c2,a,bt);}}
+  for(var n=0,right=N-1;right>=1;right-=2){if(right===6)right=5;for(var vt=0;vt<N;vt++)for(j=0;j<2;j++){var x=right-j,up=((right+1)&2)===0,y=up?N-1-vt:vt;
+    if(!F[y][x]&&n<cw.length*8){M[y][x]=((cw[n>>>3]>>>(7-(n&7)))&1)!==0;n++;}}}
+  var inv=function(m,x,y){switch(m){case 0:return (x+y)%2===0;case 1:return y%2===0;case 2:return x%3===0;case 3:return (x+y)%3===0;
+    case 4:return (Math.floor(x/3)+Math.floor(y/2))%2===0;case 5:return x*y%2+x*y%3===0;case 6:return (x*y%2+x*y%3)%2===0;default:return ((x+y)%2+x*y%3)%2===0;}};
+  var apply=function(m){for(var y=0;y<N;y++)for(var x=0;x<N;x++)if(!F[y][x]&&inv(m,x,y))M[y][x]=!M[y][x];};
+  var score=function(){var s=0,dark=0,x,y,line,run,pat=[true,false,true,true,true,false,true];
+    for(var o=0;o<2;o++)for(var a=0;a<N;a++){run=1;line=[];for(var b2=0;b2<N;b2++){var c=o?M[b2][a]:M[a][b2];line.push(c);
+      if(b2>0&&c===line[b2-1]){run++;if(run===5)s+=3;else if(run>5)s++;}else run=1;}
+      for(b2=0;b2+7<=N;b2++){var ok=pat.every(function(v,i){return line[b2+i]===v;});if(!ok)continue;
+        var l=b2-4>=0?line.slice(b2-4,b2).every(function(v){return !v;}):b2===0||line.slice(0,b2).every(function(v){return !v;}),
+            r=b2+11<=N?line.slice(b2+7,b2+11).every(function(v){return !v;}):line.slice(b2+7).every(function(v){return !v;});
+        if(l||r)s+=40;}}
+    for(y=0;y<N-1;y++)for(x=0;x<N-1;x++){var c3=M[y][x];if(c3===M[y][x+1]&&c3===M[y+1][x]&&c3===M[y+1][x+1])s+=3;}
+    for(y=0;y<N;y++)for(x=0;x<N;x++)if(M[y][x])dark++;
+    s+=Math.floor(Math.abs(dark*20-N*N*10)/(N*N))*10;return s;};
+  var best=0,bs=Infinity;for(var m=0;m<8;m++){apply(m);fmt(m);var sc=score();if(sc<bs){bs=sc;best=m;}apply(m);}
+  apply(best);fmt(best);return M;}
+function qrSVG(text,quiet){var M=qrMatrix(text),N=M.length,q=quiet==null?2:quiet,W=N+2*q,d='';
+  for(var y=0;y<N;y++)for(var x=0;x<N;x++)if(M[y][x])d+='M'+(x+q)+' '+(y+q)+'h1v1h-1z';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+W+'" shape-rendering="crispEdges"><rect width="'+W+'" height="'+W+'" fill="#fff"/><path d="'+d+'" fill="#000"/></svg>';}
+var QR_BASE='https://shinu-easy.github.io/chugokugo-4dan-dojo/',QRC={};
+/* その課だけを範囲にして、教材タブのA4表示で開くURL（課の並び順が変わっても同じ課を開けるよう、課の番号ではなく課の名前（ID）を使う） */
+function unitQR(p){var c=CATS[p/2-1];if(!c)return '';var u=QR_BASE+'#'+c.id;
+  if(!QRC[u])QRC[u]='<a class="qr" href="'+u+'" title="この課を開く（再印刷・解答・音声）">'+qrSVG(u,2)+'<span>解答・音声</span></a>';return QRC[u];}
+
 /* ---------------- vocabulary (exercise) page ---------------- */
 function vocPage(d){
   var n=d.wordsPerRow||10, ws=d.words;
@@ -857,7 +920,7 @@ function vocPage(d){
   }).join('');
   var sgcls='sg'+(lab?' lab':'')+(cols===5?' c5':'');
   var rowsN=Math.ceil(d.sents.length/cols);
-  return '<section class="page v" data-p="'+d.p+'"><div class="pn" style="top:34px">'+d.p+'</div><h2 class="vt">'+esc(d.title)+'</h2>'
+  return '<section class="page v" data-p="'+d.p+'">'+unitQR(d.p)+'<div class="pn" style="top:34px">'+d.p+'</div><h2 class="vt">'+esc(d.title)+'</h2>'
    +'<div class="wg" style="grid-template-columns:repeat('+n+',1fr)">'+wh+'</div>'
    +'<div class="vh2">'+esc(d.h2).replace(/(※.*)$/,'<small>$1</small>')+'</div>'
    +'<div class="'+sgcls+'" style="grid-template-columns:repeat('+cols+',1fr)">'+sh+'</div><div class="copy">'+COPY+'</div></section>';
