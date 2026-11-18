@@ -151,7 +151,9 @@ textarea{min-height:90px;font-family:ui-monospace,monospace;font-size:.78rem}
 #doc .page .pn{position:absolute;left:84px;top:40px;font-family:var(--f-py);font-size:15px}
 #doc .copy{position:absolute;right:16px;bottom:5px;font-size:9px;line-height:1;font-family:var(--f-py);color:#666}
 #doc .page.hide{display:none}
-#doc .qr{position:absolute;left:10px;top:14px;width:60px;display:block;text-decoration:none;color:#000;line-height:1}
+#doc .qr{width:60px;display:block;text-decoration:none;color:#000;line-height:1;margin-right:7px}
+#doc .wg>.qr{grid-column:-2/-1;justify-self:end;align-self:start}
+#doc .qrrow{display:flex;justify-content:flex-end;margin:3px 54px 0 70px}
 #doc .qr svg{display:block;width:60px;height:60px}
 #doc .qr span{display:block;margin-top:1px;font-size:8px;text-align:center;letter-spacing:.02em;font-family:var(--f-ja,serif)}
 #doc h1{margin:0 0 4px;font-size:23px;font-weight:normal;text-align:center;letter-spacing:.5px;padding-left:20px;line-height:1.4}
@@ -920,8 +922,10 @@ function vocPage(d){
   }).join('');
   var sgcls='sg'+(lab?' lab':'')+(cols===5?' c5':'');
   var rowsN=Math.ceil(d.sents.length/cols);
-  return '<section class="page v" data-p="'+d.p+'">'+unitQR(d.p)+'<div class="pn" style="top:34px">'+d.p+'</div><h2 class="vt">'+esc(d.title)+'</h2>'
-   +'<div class="wg" style="grid-template-columns:repeat('+n+',1fr)">'+wh+'</div>'
+  /* QRコード：新出語彙が2行以上なら最終行の右端（空いたマス）、1行だけなら新出語彙と練習の間に、どちらも新出語彙の右端にそろえて置く */
+  var qr=unitQR(d.p),one=ws.length<=n;
+  return '<section class="page v" data-p="'+d.p+'"><div class="pn" style="top:34px">'+d.p+'</div><h2 class="vt">'+esc(d.title)+'</h2>'
+   +'<div class="wg" style="grid-template-columns:repeat('+n+',1fr)">'+wh+(one?'':qr)+'</div>'+(one?'<div class="qrrow">'+qr+'</div>':'')
    +'<div class="vh2">'+esc(d.h2).replace(/(※.*)$/,'<small>$1</small>')+'</div>'
    +'<div class="'+sgcls+'" style="grid-template-columns:repeat('+cols+',1fr)">'+sh+'</div><div class="copy">'+COPY+'</div></section>';
 }
